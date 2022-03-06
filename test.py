@@ -1,10 +1,42 @@
 from unittest import TestCase
+from urllib import response
 from app import app
 from flask import session
 from boggle import Boggle
 
 
 class FlaskTests(TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+        app.config["TESTING"] = True
 
-    # TODO -- write tests for every view function / feature!
+    def test_home(self):
+        with self.client:
+            response = self.client.get("/")
+            self.assertIn('board', session)
+            self.assertIsNone(session.get('high_score'))
+            self.assertIsNone(session.get('plays'))
+            self.assertIn(b'<p>High Score:', response.data)
+            self.assertIn(b'Score:', response.data)
+            self.assertIn(b'Seconds Left:', response.data)
 
+    def test_valid_word(self):
+        with self.client as client:
+            with client.session_transaction() as sess:
+                sess['board'] = [["D", "O", "G", "G", "G"], 
+                                 ["D", "O", "G", "G", "G"], 
+                                 ["D", "O", "G", "G", "G"], 
+                                 ["D", "O", "G", "G", "G"], 
+                                 ["D", "O", "G", "G", "G"]]
+        response = self.client.get('/check-word?word=dog')
+        self.assertEqual(response.json['result'], 'ok')
+
+    def test_invalid_word(self):
+        self.client.get('/')
+        response = self.client.get('/check-word?word=impossible')
+        self.assertEqual(response.json['result'], 'not-on-board')
+
+    def non_english_word(self):
+        self.client.get('/')
+        response = self.client.get('/check-word?word=fsjdakfkldsfjdslkfjdlksf')
+        self.assertEqual(response.json['result'], 'not-word')
